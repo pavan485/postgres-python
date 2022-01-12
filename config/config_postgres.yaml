@@ -1,0 +1,5 @@
+
+dbname : 'cp_met' 
+user : 'postgres' 
+pw : 'root'
+table_name : 'raw_data4'
