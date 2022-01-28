@@ -1,8 +1,8 @@
 import yaml
 import log
-import  psycopg2, json
+import requests,json
 import dateutil.parser as dp
-creds = yaml.safe_load(open('./config/config_postgres.yaml'))
+creds = yaml.safe_load(open('./config/config_opents.yaml'))
 conf = yaml.safe_load(open('./config/config_catchpoint.yaml'))
 logger = log.get_logger(__name__,conf['log_file'],conf['log_level'])
 
@@ -10,54 +10,87 @@ logger = log.get_logger(__name__,conf['log_file'],conf['log_level'])
 class Utils():
     @staticmethod
     def parse_raw(structure):
-        logger.info("Parsing JSon")
+        logger.info("Parsing data for OpentsDB")
+        char_map = {'#':'numOf','%':'percent','(':'.',')':'',' ':''}
+        chars = "#%() " 
+        metric_values = []
+        items = []
+        test_metric_values = []
+        metric_values = []
+        solution = {}
+        lines = []
         synthetic_metrics = []
+        test_params = []
         if 'error' in structure:
             logger.error(structure['error'])
         if 'detail' not in structure:
             logger.error('No data available')
             return None    
-        test_params = []
-        final_list = [] #list of all jsons
         synthetic_metrics = structure['detail']['fields']['synthetic_metrics']
         
         for i in synthetic_metrics:
-            metrics = i['name']
+            for char in chars:
+                i['name'] = i['name'].replace(char,char_map[char])
+            metrics = 'catchpoint.testdata.{0}'.format(i['name'])
             test_params.append(metrics)
-        
+
+
+
         for value in structure['detail']['items']:
             values = {} # json which contains tags fields time 
+            tag = {
+                'TestId' : value['breakdown_1']['id'],
+                'NodeId' : value['breakdown_2']['id']
+            }
             
-            
-            values['breakdown_1'] = value['breakdown_1']['name']
-            values['breakdown_2'] = value['breakdown_2']['name']
+
             if 'step' in value:
-                values['step'] = value['step']
+                tag['StepNumber'] = value['step']
             if 'hop_number' in value:
-                values['hop_number'] = value['hop_number']
+                tag['HopNumber'] = value['hop_number']
         
-            
-            values['time_stamp'] = dp.parse(value['dimension']['name']).timestamp()*1000000
+            values['tags'] = tag
+
+            values['timestamp'] = dp.parse(value['dimension']['name']).timestamp()
 
             metric_values = value['synthetic_metrics']
-            fields = {}
-            for i in range(0,len(metric_values),1):
-                fields[test_params[i]]=metric_values[i]
-            values['metrics'] = fields
-            final_list.append(values)
-        return final_list
-                
+            metric_values.append(values)
+            test_metric_values.append(metric_values)
+        
+        for test_metric_value in test_metric_values:
+            temp = {}
+            temp['fields'] = {}
+            for i in range(0,len(test_metric_value),1):
+                # if test_metric_value[i] is None:
+                #     continue
+                if type(test_metric_value[i]) is dict:
+                    for value in test_metric_value[i]:
+                        temp[value] = test_metric_value[i][value]
+                else:    
+                    temp['fields'][test_params[i]] = test_metric_value[i]                    
+
+            items.append(temp)   
+        solution['items'] = items
+    
+        for item in solution['items']:
+            for metric in item['fields']:
+                line = {
+                    'metric' : metric,
+                    'timestamp' : item['timestamp'],
+                    'value' : item['fields'][metric],
+                    'tags' : item['tags']
+                }
+                lines.append(line)
+        return lines  
+        
 
     @staticmethod
     def write_data(data):
-        logger.info("Pushing data to PostgreSQL")
+        logger.info("Pushing data to OpentsDB")
+        tsdb_url = '{0}:{1}/api/put?summary'.format(creds['tsdb_host'],creds['tsdb_port'])
         try:
-            with psycopg2.connect('dbname={0} user={1} password={2}'.format(creds['dbname'],creds['user'],creds['pw'])) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(""" create table if not exists {0}(id serial NOT NULL PRIMARY KEY, info json NOT NULL) """.format(creds['table_name']))
-                    for i in data: 
-                        cur.execute("""INSERT INTO {0}(info)VALUES( '{1}' )""".format(creds['table_name'],json.dumps(i)))
-            
+            r = requests.post(tsdb_url, json=data)
+            return r.text
         except Exception as e:
             logger.exception(str(e))
             logger.exception('Error while writing data')
