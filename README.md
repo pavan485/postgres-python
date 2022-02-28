@@ -25,7 +25,7 @@ Run following commands in the directory /Postgres-Python
    
    
 ### Configuration
-In the config_catchpoint.yaml file under config sub-directory, enter your [Catchpoint API consumer key and secret](https://portal.catchpoint.com/ui/Content/Administration/ApiDetail.aspx)
+In the 'config_catchpoint.yaml' file under config sub-directory, enter your [Catchpoint API consumer key and secret](https://portal.catchpoint.com/ui/Content/Administration/ApiDetail.aspx)
 In the test_ids object of the config_catchpoint.yaml file, enter the test IDs you want to pull the data for in a dictionary of array format.
 
 *Example:*
@@ -42,7 +42,7 @@ In the test_ids object of the config_catchpoint.yaml file, enter the test IDs yo
               
           }
 ---       
-In the config_mongo.py file, enter your MongoDB url, database name and collection name where the data will be stored. The default MongoDB URL for a local installation is http://localhost:27017
+In the 'config_postgres.yaml' file, enter your database name, user, password, table name.
 
 
 ### How to run
@@ -57,7 +57,7 @@ In the config_mongo.py file, enter your MongoDB url, database name and collectio
 
 or 
 
-- In the /python-mongo directory, run appliaction.py after uncommenting the while true: and time.sleep.
+- In the /python-mongo directory, run appliaction.py after uncommenting the while true: and time.sleep().
 
 
 
