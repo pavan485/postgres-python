@@ -57,7 +57,7 @@ In the 'config_postgres.yaml' file, enter your database name, user, password, ta
 
 or 
 
-- In the /python-mongo directory, run appliaction.py after uncommenting the while true: and time.sleep().
+- In the /Postgres-Mongo directory, run appliaction.py after uncommenting the while true: and time.sleep().
 
 
 
